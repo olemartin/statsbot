@@ -75,7 +75,7 @@ exports.handler = async (event, context, callback) => {
                     : rate.role === 'elder'
                         ? 'Senior'
                         : rate.role === 'coLeader' ? 'Ass' : rate.role === 'leader' ? 'Leder' : '',
-                rate.role === 'coLeader' ? '😇' : rate.senior ? '😃' : '𝗫',
+                rate.role === 'coLeader' ? '😇' : rate.senior ? '😃' : '❌',
             ])
     );
 
