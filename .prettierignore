@@ -1,0 +1,6 @@
+node_modules/**
+dist/**
+db-scripts/**
+docs/**
+heroku-custom-pages/**
+public/**

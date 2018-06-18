@@ -1,0 +1,7 @@
+{
+  "lambda": {
+    "role": "statsbot-executor",
+    "name": "statsbot",
+    "region": "eu-west-3"
+  }
+}
