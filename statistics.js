@@ -56,13 +56,16 @@ exports.handler = async (event, context, callback) => {
     const webhook1 = fetch('https://discordapp.com/api/webhooks/' + process.env.DISCORD_KEY, {
         method: 'POST',
         body: JSON.stringify({
-            content: 'Inkluderer for øyeblikket ikke dem som ikke spiller krig',
+            content:
+                'Inkluderer for øyeblikket ikke dem som ikke spiller krig. \n' +
+                'CW % er vinstraten i klankrig, Ut er antall donerte, ' +
+                'Inn er antall kort mottatt, Nå er nåværende rolle, Sen? er om du er kvalifisert til å bli senior for denne uken.',
         }),
         headers: { 'Content-Type': 'application/json' },
     });
     await Promise.all([webhook1]);
 
-    const outputArray = [['Navn', 'CW %', 'Donert', 'Mottatt', 'Rolle', 'Senior?']].concat(
+    const outputArray = [['Navn', 'CW %', 'Ut', 'Inn', 'Nå', 'Sen?']].concat(
         callbackResponse
             .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
             .map(rate => [
@@ -71,11 +74,11 @@ exports.handler = async (event, context, callback) => {
                 rate.donated,
                 rate.received,
                 rate.role === 'member'
-                    ? 'Medlem'
+                    ? '👶'
                     : rate.role === 'elder'
-                        ? 'Senior'
-                        : rate.role === 'coLeader' ? 'Ass' : rate.role === 'leader' ? 'Leder' : '',
-                rate.role === 'coLeader' ? '😇' : rate.senior ? '😃' : '❌',
+                        ? '👨'
+                        : rate.role === 'coLeader' ? '👮' : rate.role === 'leader' ? '🤶' : '',
+                rate.role === 'coLeader' || rate.role === 'leader' ? '😇' : rate.senior ? '😀' : '❌',
             ])
     );
 
