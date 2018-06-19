@@ -3,13 +3,13 @@ const table = require('text-table');
 
 exports.handler = async (event, context, callback) => {
     console.log('Starting lambda');
-    const response = await fetch('https://api.royaleapi.com/clan/' + process.env.CLAN_ID, {
+    const response = await fetch('https://api.royaleapi.com/clan/' + event.clan_id, {
         headers: { auth: process.env.ROYALE_API_KEY },
     });
     const responseJson = await response.json();
     const members = responseJson.members.map(member => member.tag);
 
-    const promise = await fetch('https://api.royaleapi.com/clan/' + process.env.CLAN_ID + '/warlog', {
+    const promise = await fetch('https://api.royaleapi.com/clan/' + event.clan_id + '/warlog', {
         headers: { auth: process.env.ROYALE_API_KEY },
     });
     const statistics = await promise.json();
@@ -53,7 +53,7 @@ exports.handler = async (event, context, callback) => {
         });
     });
 
-    const webhook1 = fetch('https://discordapp.com/api/webhooks/' + process.env.DISCORD_KEY, {
+    const webhook1 = fetch('https://discordapp.com/api/webhooks/' + event.discord_key, {
         method: 'POST',
         body: JSON.stringify({
             content:
@@ -93,7 +93,7 @@ exports.handler = async (event, context, callback) => {
                 .join('\n') +
             '```';
         console.log('Generated response:', responseText);
-        const webhook = fetch('https://discordapp.com/api/webhooks/' + process.env.DISCORD_KEY, {
+        const webhook = fetch('https://discordapp.com/api/webhooks/' + event.discord_key, {
             method: 'POST',
             body: JSON.stringify({ content: responseText }),
             headers: { 'Content-Type': 'application/json' },
