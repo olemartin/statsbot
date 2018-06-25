@@ -3,74 +3,53 @@ const table = require('text-table');
 
 exports.handler = async (event, context, callback) => {
     console.log('Starting lambda');
-    const response = await fetch('https://api.royaleapi.com/clan/' + event.clan_id, {
+
+    const showSenior = event.senior;
+
+    let clanDataPromise = fetch('https://api.royaleapi.com/clan/' + event.clan_id, {
         headers: { auth: process.env.ROYALE_API_KEY },
     });
-    const responseJson = await response.json();
-    const members = responseJson.members.map(member => member.tag);
 
-    const promise = await fetch('https://api.royaleapi.com/clan/' + event.clan_id + '/warlog', {
+    let warlogPromise = fetch('https://api.royaleapi.com/clan/' + event.clan_id + '/warlog', {
         headers: { auth: process.env.ROYALE_API_KEY },
     });
-    const statistics = await promise.json();
 
+    [clanDataPromise, warlogPromise] = await Promise.all([clanDataPromise, warlogPromise]);
+
+    let clanData = clanDataPromise.json();
+    let warlog = warlogPromise.json();
+
+    [clanData, warlog] = await Promise.all([clanData, warlog]);
+
+    console.log('warlog', warlog);
+    console.log('clanData', clanData);
     console.log('Got data');
-    const data = {};
 
-    statistics.forEach(war => {
-        war.participants.forEach(participant => {
-            if (members.indexOf(participant.tag) !== -1) {
-                if (!data[participant.tag]) {
-                    data[participant.tag] = {
-                        played: 0,
-                        won: 0,
-                        name: participant.name,
-                        donated: responseJson.members[members.indexOf(participant.tag)].donations,
-                        received: responseJson.members[members.indexOf(participant.tag)].donationsReceived,
-                        role: responseJson.members[members.indexOf(participant.tag)].role,
-                    };
-                }
-
-                data[participant.tag].played += participant.battlesPlayed > 0 ? participant.battlesPlayed : 1;
-                data[participant.tag].won += participant.wins;
-            }
-        });
-    });
-    console.log('Transformed data');
-    let callbackResponse = [];
-    Object.keys(data).forEach(tag => {
+    const warData = warbattleStatistics(warlog);
+    console.log(JSON.stringify(warData));
+    const callbackResponse = [];
+    console.log('Got clanStatistics');
+    clanData.members.forEach(member => {
+        const percent = (warData[member.tag] && warData[member.tag].percent) || -1;
         callbackResponse.push({
-            name: data[tag].name,
-            tag: tag,
-            percent: (100 * data[tag].won / data[tag].played).toFixed(),
-            donated: data[tag].donated,
-            received: data[tag].received,
-            role: data[tag].role,
-            senior:
-                data[tag].donated >= 500 &&
-                data[tag].received >= 600 &&
-                (100 * data[tag].won / data[tag].played).toFixed() >= 45,
+            name: member.name,
+            tag: member.tag,
+            percent: percent,
+            donated: member.donations,
+            received: member.donationsReceived,
+            role: member.role,
+            senior: member.donations >= 500 && member.donationsReceived >= 600 && percent >= 45,
         });
     });
 
-    const webhook1 = fetch('https://discordapp.com/api/webhooks/' + event.discord_key, {
-        method: 'POST',
-        body: JSON.stringify({
-            content:
-                'Inkluderer for øyeblikket ikke dem som ikke spiller krig. \n' +
-                'CW % er vinstraten i klankrig, Ut er antall donerte, ' +
-                'Inn er antall kort mottatt, Nå er nåværende rolle, Sen? er om du er kvalifisert til å bli senior for denne uken.',
-        }),
-        headers: { 'Content-Type': 'application/json' },
-    });
-    await Promise.all([webhook1]);
+    await writeDescription(event.discord_key, showSenior);
 
-    const outputArray = [['Navn', 'CW %', 'Ut', 'Inn', 'Nå', 'Sen?']].concat(
+    const outputArray = [['Navn', 'CW %', 'Ut', 'Inn', 'Sen', showSenior ? 'Sen?' : '']].concat(
         callbackResponse
             .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
             .map(rate => [
                 rate.name,
-                rate.percent + '%',
+                rate.percent === -1 ? 'MIA' : rate.percent + '%',
                 rate.donated,
                 rate.received,
                 rate.role === 'member'
@@ -78,9 +57,13 @@ exports.handler = async (event, context, callback) => {
                     : rate.role === 'elder'
                         ? '👨'
                         : rate.role === 'coLeader' ? '👮' : rate.role === 'leader' ? '🤶' : '',
-                rate.role === 'coLeader' || rate.role === 'leader' ? '😇' : rate.senior ? '😀' : '❌',
+                showSenior
+                    ? rate.role === 'coLeader' || rate.role === 'leader' ? '😇' : rate.senior ? '😀' : '❌'
+                    : '',
             ])
     );
+
+    console.log('outputArray', outputArray);
 
     const tableText = table(outputArray);
 
@@ -102,4 +85,41 @@ exports.handler = async (event, context, callback) => {
             .catch(err => console.log('Request failed:', err));
         await Promise.all([webhook]);
     }
+};
+
+const writeDescription = (discord, showSenior) => {
+    return fetch('https://discordapp.com/api/webhooks/' + discord, {
+        method: 'POST',
+        body: JSON.stringify({
+            content:
+                'CW % er vinstraten i klankrig, Ut er antall donerte, ' +
+                'Inn er antall kort mottatt, Sen er nåværende rolle' +
+                (showSenior
+                    ? ', Sen? er om du er kvalifisert til å bli senior for denne uken (Minimum 500 donasjoner denne uken, ' +
+                      '15 forespørsler denne uken og 45% vinstrate).'
+                    : '.'),
+        }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+};
+
+const warbattleStatistics = warlog => {
+    const data = {};
+    warlog.forEach(war => {
+        war.participants.forEach(participant => {
+            if (!data[participant.tag]) {
+                data[participant.tag] = {
+                    played: 0,
+                    won: 0,
+                };
+            }
+
+            data[participant.tag].played += participant.battlesPlayed > 0 ? participant.battlesPlayed : 1;
+            data[participant.tag].won += participant.wins;
+        });
+    });
+    Object.keys(data).forEach(tag => {
+        data[tag].percent = (100 * data[tag].won / data[tag].played).toFixed();
+    });
+    return data;
 };
