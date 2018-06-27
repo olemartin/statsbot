@@ -1,8 +1,7 @@
-Denne poster statistikk om klanen til Discord.
-Integrerer med RoyaleAPI.com og Discord. Sett opp lambdaen til å f.eks. kjøre hver kveld.
+This lambda posts data about your Clash Royale clan to a Discord Web Hook. Integrates with RoyaleApi.com and Discord.
+Set the lambda to run each evening.
 
+Check `example-event.json` for how your event object should look.
 
-Du trenger følgende environment-variabler for å kjøre denne lambdaen:
-* CLAN_ID
-* DISCORD_KEY 
+You need the following environment-variables set:
 * ROYALE_API_KEY
