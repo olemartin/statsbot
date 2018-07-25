@@ -5,6 +5,7 @@ exports.handler = async (event, context, callback) => {
     console.log('Starting lambda');
 
     const showSenior = event.senior;
+    const showKick = event.kick;
 
     let clanDataPromise = fetch('https://api.royaleapi.com/clan/' + event.clan_id, {
         headers: { auth: process.env.ROYALE_API_KEY },
@@ -39,12 +40,15 @@ exports.handler = async (event, context, callback) => {
             received: member.donationsReceived,
             role: member.role,
             senior: member.donations >= 500 && member.donationsReceived >= 600 && percent >= 45,
+            kick: member.donations < 150 || member.donationsReceived < 200,
         });
     });
 
-    await writeDescription(event.discord_key, showSenior);
+    await writeDescription(event.discord_key, showSenior, showKick);
 
-    const outputArray = [['Navn', 'CW %', 'Ut', 'Inn', 'Sen', showSenior ? 'Sen?' : '']].concat(
+    const outputArray = [
+        ['Navn', 'CW %', 'Ut', 'Inn', 'Sen', showKick ? 'Kick?' : '', showSenior ? 'Sen?' : ''],
+    ].concat(
         callbackResponse
             .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
             .map(rate => [
@@ -57,6 +61,7 @@ exports.handler = async (event, context, callback) => {
                     : rate.role === 'elder'
                         ? '👨'
                         : rate.role === 'coLeader' ? '👮' : rate.role === 'leader' ? '🤶' : '',
+                showKick ? (rate.role === 'coLeader' || rate.role === 'leader' ? '😇' : rate.kick ? '👟' : '👌') : '',
                 showSenior
                     ? rate.role === 'coLeader' || rate.role === 'leader' ? '😇' : rate.senior ? '😀' : '❌'
                     : '',
@@ -87,7 +92,7 @@ exports.handler = async (event, context, callback) => {
     }
 };
 
-const writeDescription = (discord, showSenior) => {
+const writeDescription = (discord, showSenior, showKick) => {
     return fetch('https://discordapp.com/api/webhooks/' + discord, {
         method: 'POST',
         body: JSON.stringify({
@@ -97,7 +102,10 @@ const writeDescription = (discord, showSenior) => {
                 (showSenior
                     ? ', Sen? er om du er kvalifisert til å bli senior for denne uken (Minimum 500 donasjoner denne uken, ' +
                       '15 forespørsler denne uken og 45% vinstrate).'
-                    : '.'),
+                    : '.') +
+                (showKick
+                    ? 'Kick? betyr at brukeren blir sparket om den ikke når målet om minimum 150 donasjoner og 5 forespørsler.'
+                    : ''),
         }),
         headers: { 'Content-Type': 'application/json' },
     });
