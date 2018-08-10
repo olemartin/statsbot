@@ -70,26 +70,7 @@ exports.handler = async (event, context, callback) => {
 
     console.log('outputArray', outputArray);
 
-    const tableText = table(outputArray);
-
-    for (let i = 0; i < tableText.split('\n').length; i += 20) {
-        var responseText =
-            '```' +
-            tableText
-                .split('\n')
-                .slice(i, i + 20)
-                .join('\n') +
-            '```';
-        console.log('Generated response:', responseText);
-        const webhook = fetch('https://discordapp.com/api/webhooks/' + event.discord_key, {
-            method: 'POST',
-            body: JSON.stringify({ content: responseText }),
-            headers: { 'Content-Type': 'application/json' },
-        })
-            .then(response => console.log('Request ok:', response.statusText))
-            .catch(err => console.log('Request failed:', err));
-        await Promise.all([webhook]);
-    }
+    await sendTableToDiscord(table(outputArray), event.discord_key, true);
 };
 
 const writeDescription = (discord, showSenior, showKick) => {
@@ -111,6 +92,28 @@ const writeDescription = (discord, showSenior, showKick) => {
     });
 };
 
+const sendTableToDiscord = async (tableText, discordKey, wait) => {
+    for (let i = 0; i < tableText.split('\n').length; i += 20) {
+        var responseText =
+            '```' +
+            tableText
+                .split('\n')
+                .slice(i, i + 20)
+                .join('\n') +
+            '```';
+        console.log('Generated response:', responseText);
+        const webhook = fetch('https://discordapp.com/api/webhooks/' + discordKey, {
+            method: 'POST',
+            body: JSON.stringify({ content: responseText }),
+            headers: { 'Content-Type': 'application/json' },
+        })
+            .then(response => console.log('Request ok:', response.statusText))
+            .catch(err => console.log('Request failed:', err));
+        if (wait) {
+            await Promise.all([webhook]);
+        }
+    }
+};
 const warbattleStatistics = warlog => {
     const data = {};
     warlog.forEach(war => {
