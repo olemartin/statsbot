@@ -22,24 +22,22 @@ exports.handler = async (event, context, callback) => {
 
     [clanData, warlog] = await Promise.all([clanData, warlog]);
 
-    console.log('warlog', warlog);
-    console.log('clanData', clanData);
-    console.log('Got data');
-
     const warData = warbattleStatistics(warlog);
-    console.log(JSON.stringify(warData));
+
     const callbackResponse = [];
-    console.log('Got clanStatistics');
+
     clanData.members.forEach(member => {
         const percent = (warData[member.tag] && warData[member.tag].percent) || -1;
+        const played = (warData[member.tag] && warData[member.tag].played) || 0;
         callbackResponse.push({
             name: member.name,
             tag: member.tag,
-            percent: percent,
+            percent,
+            played,
             donated: member.donations,
             received: member.donationsReceived,
             role: member.role,
-            senior: member.donations >= 500 && member.donationsReceived >= 600 && percent >= 45,
+            senior: member.donations >= 480 && member.donationsReceived >= 560 && percent >= 40 && played > 3,
             kick: member.donations < 150 || member.donationsReceived < 200,
         });
     });
@@ -47,13 +45,14 @@ exports.handler = async (event, context, callback) => {
     await writeDescription(event.discord_key, showSenior, showKick);
 
     const outputArray = [
-        ['Navn', 'CW %', 'Ut', 'Inn', 'Sen', showKick ? 'Kick?' : '', showSenior ? 'Sen?' : ''],
+        ['Navn', 'CW %', 'Splt', 'Ut', 'Inn', 'Sen', showKick ? 'Kick?' : '', showSenior ? 'Sen?' : ''],
     ].concat(
         callbackResponse
             .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
             .map(rate => [
                 rate.name,
                 rate.percent === -1 ? 'MIA' : rate.percent + '%',
+                rate.played,
                 rate.donated,
                 rate.received,
                 rate.role === 'member'
@@ -78,11 +77,11 @@ const writeDescription = (discord, showSenior, showKick) => {
         method: 'POST',
         body: JSON.stringify({
             content:
-                'CW % er vinstraten i klankrig, Ut er antall donerte, ' +
+                'CW % er vinstraten i klankrig, Splt er antall kamper siste 10 runder, Ut er antall donerte, ' +
                 'Inn er antall kort mottatt, Sen er nåværende rolle' +
                 (showSenior
-                    ? ', Sen? er om du er kvalifisert til å bli senior for denne uken (Minimum 500 donasjoner denne uken, ' +
-                      '15 forespørsler denne uken og 45% vinstrate).'
+                    ? ', Sen? er om du er kvalifisert til å bli senior for denne uken (Minimum 480 donasjoner denne uken, ' +
+                      '14 forespørsler denne uken, 4 spilte kamper siste 10 runder og 40% vinstrate).'
                     : '.') +
                 (showKick
                     ? 'Kick? betyr at brukeren blir sparket om den ikke når målet om minimum 150 donasjoner og 5 forespørsler.'
