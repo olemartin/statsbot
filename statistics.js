@@ -29,6 +29,7 @@ exports.handler = async (event, context, callback) => {
     clanData.members.forEach(member => {
         const percent = (warData[member.tag] && warData[member.tag].percent) || -1;
         const played = (warData[member.tag] && warData[member.tag].played) || 0;
+        const isSen = member.role === 'elder';
         callbackResponse.push({
             name: member.name,
             tag: member.tag,
@@ -37,7 +38,7 @@ exports.handler = async (event, context, callback) => {
             donated: member.donations,
             received: member.donationsReceived,
             role: member.role,
-            senior: played > 5,
+            senior: isSen ? played > 5 : played > 7,
             kick: member.donations < 150 || member.donationsReceived < 200,
         });
     });
@@ -80,7 +81,7 @@ const writeDescription = (discord, showSenior, showKick) => {
                 'CW % er vinstraten i klankrig, Splt er antall kamper siste 10 runder, Ut er antall donerte, ' +
                 'Inn er antall kort mottatt, Sen er nåværende rolle' +
                 (showSenior
-                    ? ', Sen? er om du er kvalifisert til å bli senior for denne uken (6 spilte kamper siste 10 runder).'
+                    ? ', Sen? er om du er kvalifisert til å bli senior for denne uken (8 spilte kamper siste 10 runder - 6 for de som alt er senior).'
                     : '.') +
                 (showKick
                     ? 'Kick? betyr at brukeren blir sparket om den ikke når målet om minimum 150 donasjoner og 5 forespørsler.'
